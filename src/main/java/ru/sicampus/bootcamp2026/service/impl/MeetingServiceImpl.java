@@ -2,8 +2,10 @@ package ru.sicampus.bootcamp2026.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import ru.sicampus.bootcamp2026.dto.*;
 import ru.sicampus.bootcamp2026.entity.*;
 import ru.sicampus.bootcamp2026.util.MeetingMapper;
@@ -12,6 +14,8 @@ import ru.sicampus.bootcamp2026.service.MeetingService;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,34 +33,66 @@ public class MeetingServiceImpl implements MeetingService {
     @Transactional
     @Override
     public void createMeeting(Long organizerId, MeetingCreateDTO dto) {
-        if (dto.getDateTime().getMinute() != 0) throw new RuntimeException("Только начало часа");
+        if (dto.getDateTime().getMinute() != 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Встречи могут начинаться только в начале часа (xx:00)");
+        }
 
-        User org = userRepository.findById(organizerId).orElseThrow(() -> new RuntimeException("Орг не найден"));
-        Meeting m = new Meeting();
-        m.setTopic(dto.getTopic());
-        m.setCalendarDate(dto.getDateTime().toLocalDate());
-        m.setStartTime(dto.getDateTime().toLocalTime());
-        m.setEndTime(m.getStartTime().plusHours(1));
-        m.setOrganizer(org);
-        m.setStatus(statusRepo.findByStatusName("SCHEDULED").orElseThrow());
-        m.setType(typeRepo.findByTypeName("ONLINE").orElse(null));
+        LocalDate date = dto.getDateTime().toLocalDate();
+        LocalTime startTime = dto.getDateTime().toLocalTime();
+        LocalTime endTime = startTime.plusHours(1);
 
-        Meeting saved = meetingRepository.save(m);
-        InvitationStatus pending = invStatusRepo.findByStatusName("PENDING").orElseThrow();
+        if (meetingRepository.existsActiveMeetingForUser(organizerId, date, startTime, endTime)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Вы уже заняты в это время!");
+        }
 
         for (Long pId : dto.getParticipantIds()) {
+            if (meetingRepository.existsActiveMeetingForUser(pId, date, startTime, endTime)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Участник с ID " + pId + " уже занят.");
+            }
+        }
+
+        User organizer = userRepository.findById(organizerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Организатор не найден"));
+
+        MeetingStatus scheduledStatus = statusRepo.findByStatusName("SCHEDULED")
+                .orElseThrow(() -> new RuntimeException("Статус SCHEDULED не найден в БД"));
+
+        MeetingType onlineType = typeRepo.findByTypeName("ONLINE")
+                .orElse(null);
+
+        InvitationStatus pendingStatus = invStatusRepo.findByStatusName("PENDING").orElseThrow();
+        InvitationStatus acceptedStatus = invStatusRepo.findByStatusName("ACCEPTED").orElseThrow();
+
+        Meeting meeting = new Meeting();
+        meeting.setTopic(dto.getTopic());
+        meeting.setCalendarDate(date);
+        meeting.setStartTime(startTime);
+        meeting.setEndTime(endTime);
+        meeting.setOrganizer(organizer);
+        meeting.setStatus(scheduledStatus);
+        meeting.setType(onlineType);
+
+        Meeting savedMeeting = meetingRepository.save(meeting);
+
+        List<MeetingParticipant> participantsToSave = new ArrayList<>();
+
+        List<User> guests = userRepository.findAllById(dto.getParticipantIds());
+
+        for (User guest : guests) {
             MeetingParticipant mp = new MeetingParticipant();
-            mp.setMeeting(saved);
-            mp.setUser(userRepository.findById(pId).orElseThrow());
-            mp.setInvitationStatus(pending);
-            participantRepository.save(mp);
+            mp.setMeeting(savedMeeting);
+            mp.setUser(guest);
+            mp.setInvitationStatus(pendingStatus);
+            participantsToSave.add(mp);
         }
 
         MeetingParticipant mpOrg = new MeetingParticipant();
-        mpOrg.setMeeting(saved);
-        mpOrg.setUser(org);
-        mpOrg.setInvitationStatus(invStatusRepo.findByStatusName("ACCEPTED").orElseThrow());
-        participantRepository.save(mpOrg);
+        mpOrg.setMeeting(savedMeeting);
+        mpOrg.setUser(organizer);
+        mpOrg.setInvitationStatus(acceptedStatus);
+        participantsToSave.add(mpOrg);
+
+        participantRepository.saveAll(participantsToSave);
     }
 
     @Override

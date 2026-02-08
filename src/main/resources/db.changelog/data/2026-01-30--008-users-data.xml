@@ -10,7 +10,7 @@
                   quotchar='"'
                   encoding="UTF-8">
 
-            <column name="id" header="id" type="NUMERIC"/>
+            <column name="id" header="id" type="skip"/>
 
             <column name="email" header="email" type="STRING"/>
             <column name="password" header="password" type="STRING"/>

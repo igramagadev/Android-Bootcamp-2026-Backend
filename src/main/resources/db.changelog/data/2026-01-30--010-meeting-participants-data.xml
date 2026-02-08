@@ -9,7 +9,7 @@
                   separator=";"
                   quotchar='"'
                   encoding="UTF-8">
-            <column name="id" header="id" type="NUMERIC"/>
+            <column name="id" header="id" type="skip"/>
             <column name="meeting_id" header="meeting_id" type="NUMERIC"/>
             <column name="user_id" header="user_id" type="NUMERIC"/>
             <column name="status_id" header="status_id" type="NUMERIC"/>

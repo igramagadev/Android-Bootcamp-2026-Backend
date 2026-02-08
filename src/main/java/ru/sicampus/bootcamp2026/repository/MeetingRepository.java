@@ -1,6 +1,7 @@
 package ru.sicampus.bootcamp2026.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import ru.sicampus.bootcamp2026.entity.Meeting;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -20,4 +21,19 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
             "AND m.calendarDate = :date " +
             "AND (m.startTime < :endTime AND m.endTime > :startTime)")
     List<Meeting> findConflictingMeetings(Long userId, LocalDate date, LocalTime startTime, LocalTime endTime);
+
+    @Query("""
+        SELECT COUNT(mp) > 0
+        FROM MeetingParticipant mp
+        WHERE mp.user.id = :userId
+        AND mp.meeting.calendarDate = :date
+        AND mp.invitationStatus.statusName = 'ACCEPTED'
+        AND mp.meeting.status.statusName = 'SCHEDULED'
+        AND (mp.meeting.startTime < :newEndTime AND mp.meeting.endTime > :newStartTime)""")
+    boolean existsActiveMeetingForUser(
+            @Param("userId") Long userId,
+            @Param("date") LocalDate date,
+            @Param("newStartTime") LocalTime newStartTime,
+            @Param("newEndTime") LocalTime newEndTime
+    );
 }
