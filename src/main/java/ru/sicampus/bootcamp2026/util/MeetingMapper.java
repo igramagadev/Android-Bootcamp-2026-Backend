@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 public class MeetingMapper {
     public MeetingInfoDTO toInfoDTO(Meeting m, List<MeetingParticipant> participants) {
         MeetingInfoDTO dto = new MeetingInfoDTO();
+        dto.setId(m.getId());
         dto.setTopic(m.getTopic());
         dto.setDateTime(LocalDateTime.of(m.getCalendarDate(), m.getStartTime()));
 
