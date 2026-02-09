@@ -18,6 +18,7 @@ public class MeetingMapper {
 
         List<ParticipantDTO> pDtos = participants.stream().map(p -> {
             ParticipantDTO pd = new ParticipantDTO();
+            pd.setJobTitle(p.getUser().getJobTitle());
             pd.setFullName(p.getUser().getFullName());
             pd.setStatus(p.getInvitationStatus().getStatusName());
             return pd;
