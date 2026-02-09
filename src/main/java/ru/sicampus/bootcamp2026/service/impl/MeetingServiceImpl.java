@@ -149,6 +149,7 @@ public class MeetingServiceImpl implements MeetingService {
         return meetingRepository.findConfirmedMeetings(userId, start, end).stream()
                 .map(m -> {
                     ScheduleEntryDTO dto = new ScheduleEntryDTO();
+                    dto.setId(m.getId());
                     dto.setTopic(m.getTopic());
                     dto.setDateTime(LocalDateTime.of(m.getCalendarDate(), m.getStartTime()));
                     return dto;

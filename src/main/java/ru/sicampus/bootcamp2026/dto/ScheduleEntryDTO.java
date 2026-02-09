@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 @Data
 public class ScheduleEntryDTO {
+    private Long id;
     private String topic;
     private LocalDateTime dateTime;
 }
